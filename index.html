@@ -1,0 +1,1176 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Supermarket Rosidi Tycoon</title>
+    
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;700;900&display=swap');
+
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; overflow: hidden; background-color: #e8ecef; font-family: 'Nunito', sans-serif; user-select: none; touch-action: none; }
+        #gameCanvas { display: block; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 10; }
+
+        .hud-panel { position: absolute; top: 20px; background: rgba(255, 255, 255, 0.95); padding: 15px 20px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.1); pointer-events: auto; transition: 0.3s; border: 1px solid rgba(0,0,0,0.05); }
+        .top-left { left: 20px; border-left: 5px solid #2ecc71; }
+        .top-right { right: 20px; border-right: 5px solid #3498db; }
+        .dark-hud { background: rgba(20, 25, 30, 0.95); color: #ecf0f1; border-color: #34495e; }
+        .dark-modal { background: #1e272e !important; color: #fff !important; }
+
+        #money-display { font-size: 26px; font-weight: 900; color: #2ecc71; }
+        #gems-display { font-size: 20px; font-weight: 900; color: #9b59b6; margin-top: 5px; }
+        .inv-header { font-size: 15px; color: #2c3e50; font-weight: 900; margin-bottom: 10px; border-bottom: 2px solid #ecf0f1; padding-bottom: 5px; }
+        .dark-hud .inv-header { color: #ecf0f1; border-bottom-color: #34495e; }
+        .inv-items { display: flex; gap: 8px; justify-content: flex-end; }
+        .item-badge { padding: 6px 14px; border-radius: 20px; font-size: 16px; font-weight: 900; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.15); }
+        .item-badge.wheat { background: linear-gradient(45deg, #e67e22, #d35400); }
+        .item-badge.tomato { background: linear-gradient(45deg, #e74c3c, #c0392b); }
+        .item-badge.milk { background: linear-gradient(45deg, #bdc3c7, #7f8c8d); color: #2c3e50; }
+        .item-badge.coffee { background: linear-gradient(45deg, #5d4037, #21130d); }
+
+        #btn-settings { background: #34495e; color: #fff; border: none; border-radius: 6px; padding: 8px; font-size: 12px; font-weight: 900; margin-top: 10px; cursor: pointer; width: 100%; transition: 0.2s; }
+        #btn-settings:hover { background: #2c3e50; transform: scale(1.02); }
+
+        .modern-btn { border: none; padding: 10px 18px; font-weight: 900; font-size: 14px; border-radius: 8px; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); font-family: 'Nunito', sans-serif; }
+        .modern-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 6px 15px rgba(0,0,0,0.2); }
+        .modern-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+        .btn-green { background: #2ecc71; color: white; }
+        .btn-purple { background: #9b59b6; color: white; }
+        .btn-orange { background: #f39c12; color: white; }
+        .btn-blue { background: #3498db; color: white; }
+        .btn-red { background: #e74c3c; color: white; }
+        .w-100 { width: 100%; }
+
+        #tutorial { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); background: rgba(15, 20, 25, 0.9); color: #f1c40f; padding: 12px 25px; border-radius: 30px; font-size: 15px; font-weight: 900; pointer-events: auto; border: 2px solid #f39c12; box-shadow: 0 10px 30px rgba(0,0,0,0.3); display: flex; align-items: center; }
+        #toast-container { position: absolute; top: 20px; left: 50%; transform: translateX(-50%); display: flex; flex-direction: column; gap: 10px; pointer-events: none; z-index: 999; }
+        .toast { background: #fff; padding: 15px 25px; border-radius: 8px; font-weight: 900; font-size: 15px; box-shadow: 0 10px 30px rgba(0,0,0,0.2); animation: popIn 0.4s forwards; color: #2c3e50; border-left: 5px solid #3498db; }
+        .toast.success { border-color: #2ecc71; } .toast.error { border-color: #e74c3c; }
+        @keyframes popIn { 0% { transform: translateY(-40px); opacity: 0; } 100% { transform: translateY(0); opacity: 1; } }
+
+        #settings-modal { position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); pointer-events: auto; display: flex; justify-content: center; align-items: center; z-index: 101; backdrop-filter: blur(4px); }
+        .settings-box { width: 400px; padding: 30px; position: relative; background: #fff; border-radius: 12px; box-shadow: 0 15px 50px rgba(0,0,0,0.4); }
+        .stats-grid { display: grid; grid-template-columns: 2fr 1fr; gap: 12px; font-size: 16px; margin-top: 15px; color: #34495e; }
+        .dark-modal .stats-grid { color: #ecf0f1; }
+
+        .hidden { display: none !important; }
+        #monitor-ui { position: absolute; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); pointer-events: auto; display: flex; justify-content: center; align-items: center; backdrop-filter: blur(3px); z-index: 100; }
+        #desktop-screen { width: 900px; height: 580px; border-radius: 12px; border: 8px solid #2c3e50; position: relative; overflow: hidden; box-shadow: 0 25px 60px rgba(0,0,0,0.7); background-size: cover; background-position: center; }
+
+        .wp-1 { background: linear-gradient(135deg, #4facfe, #00f2fe); } 
+        .wp-2 { background: #0a0a0a; } 
+        .wp-3 { background: linear-gradient(135deg, #ff9a9e, #fecfef); } 
+
+        #wp-decor { position: absolute; top:0; left:0; width:100%; height:100%; pointer-events:none; z-index:1; overflow:hidden; }
+        .wp-cloud { position: absolute; background: white; border-radius: 50px; opacity: 0.7; animation: floatCloud 20s linear infinite; }
+        @keyframes floatCloud { 0% { transform: translateX(900px); } 100% { transform: translateX(-200px); } }
+        .wp-star { position: absolute; background: white; border-radius: 50%; animation: twinkle 2s infinite ease-in-out; }
+        @keyframes twinkle { 0%, 100% { opacity: 0.2; } 50% { opacity: 1; transform: scale(1.2); } }
+
+        .desktop-icons { padding: 30px 20px; display: flex; flex-direction: column; flex-wrap: wrap; gap: 20px; height: 80%; align-content: flex-start; position: relative; z-index: 2; }
+        .app-icon { width: 75px; text-align: center; color: white; font-weight: 900; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); cursor: pointer; padding: 10px 5px; border-radius: 10px; transition: 0.2s; }
+        .app-icon:hover { background: rgba(255,255,255,0.25); transform: translateY(-3px); }
+        .icon-img { font-size: 40px; margin-bottom: 8px; filter: drop-shadow(2px 4px 6px rgba(0,0,0,0.4)); }
+
+        .glass-panel { background: rgba(255, 255, 255, 0.95); border: 1px solid rgba(255,255,255,0.5); border-radius: 12px; box-shadow: 0 20px 40px rgba(0,0,0,0.3); transition: background 0.3s, border-color 0.3s; }
+        #app-window { position: absolute; top: 50px; left: 140px; width: 620px; height: 440px; display: flex; flex-direction: column; overflow: hidden; z-index: 10; }
+        .window-header { background: #f1f2f6; color: #2c3e50; padding: 12px 18px; display: flex; justify-content: space-between; align-items: center; cursor: grab; border-bottom: 1px solid #e0e0e0; transition: background 0.3s, color 0.3s; }
+        .window-header:active { cursor: grabbing; }
+        .win-close-btn { background: #ff7675; border: none; color: white; width: 28px; height: 28px; border-radius: 50%; font-weight: bold; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .win-close-btn:hover { background: #d63031; }
+        .window-body { padding: 20px 25px; height: 100%; overflow-y: auto; box-sizing: border-box; }
+
+        .loading-screen { position: absolute; top: 48px; left: 0; right: 0; bottom: 0; background: white; display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 50; }
+        .spinner { border: 5px solid #ecf0f1; border-top: 5px solid #3498db; border-radius: 50%; width: 45px; height: 45px; animation: spin 1s linear infinite; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+        .theme-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px; margin-top: 20px; }
+        .theme-box { height: 110px; border-radius: 10px; cursor: pointer; display: flex; justify-content: center; align-items: center; color: white; font-weight: 900; font-size: 18px; text-shadow: 1px 1px 4px rgba(0,0,0,0.8); transition: 0.2s; border: 3px solid transparent; box-shadow: 0 5px 15px rgba(0,0,0,0.2); }
+        .theme-box:hover { transform: scale(1.05); border-color: #fff; }
+
+        .mining-terminal { background: #000; color: #0f0; font-family: monospace; padding: 10px; height: 120px; margin-top: 15px; border-radius: 5px; font-size: 12px; text-align: left; overflow: hidden; }
+        .term-line { margin: 3px 0; border-bottom: 1px solid rgba(46, 204, 113, 0.1); padding-bottom: 2px; }
+
+        .taskbar { position: absolute; bottom: 0; width: 100%; height: 50px; background: #1e272e; display: flex; align-items: center; padding: 0 15px; box-sizing: border-box; border-top: 2px solid #34495e; z-index: 20; }
+        .start-btn { background: #3498db; color: white; border: none; padding: 8px 18px; font-weight: 900; border-radius: 6px; cursor: pointer; }
+        .tb-item { background: rgba(255,255,255,0.15); color: #fff; padding: 8px 15px; border-radius: 6px; font-size: 14px; font-weight: bold; display: flex; align-items: center; gap: 10px; }
+        .os-dark-toggle { cursor: pointer; margin-right: 15px; font-size: 26px; padding: 5px 12px; background: rgba(255,255,255,0.1); border-radius: 8px; transition: 0.2s; display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.2); }
+        .os-dark-toggle:hover { background: rgba(255,255,255,0.25); transform: scale(1.05); }
+        .desktop-clock { color: white; font-weight: 900; font-size: 16px; margin-left: 15px; font-family: monospace; }
+
+        .app-title { margin-top: 0; font-size: 24px; border-bottom: 2px solid rgba(0,0,0,0.05); padding-bottom: 10px; margin-bottom: 15px; font-weight: 900; }
+        .gradient-text { background: linear-gradient(45deg, #2980b9, #8e44ad); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-text-blue { background: linear-gradient(45deg, #3498db, #2ecc71); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-text-purple { background: linear-gradient(45deg, #9b59b6, #e74c3c); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .gradient-text-gold { background: linear-gradient(45deg, #f1c40f, #e67e22); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+
+        .quest-item { background: #f8f9fa; padding: 15px 20px; border-radius: 10px; margin-bottom: 15px; border-left: 6px solid #3498db; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border: 1px solid #eee; }
+        .premium-card { background: #fff; padding: 25px; border-radius: 12px; box-shadow: 0 8px 25px rgba(0,0,0,0.06); border: 1px solid rgba(0,0,0,0.05); }
+        .dark-bg { background: linear-gradient(135deg, #2c3e50, #1a252f); color: white; border: none; }
+        .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .status-badge { background: #e8f8f5; color: #16a085; padding: 12px; border-radius: 8px; text-align: center; font-weight: 900; margin-top: 20px; border: 1px solid #1abc9c; font-size: 15px; }
+
+        .crate-icon { font-size: 70px; margin-bottom: 15px; }
+        .bounce { animation: bounce 2s infinite; }
+        @keyframes bounce { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-15px); } }
+
+        /* OS DARK MODE */
+        .os-dark #app-window { background: rgba(20, 25, 30, 0.95); border-color: #34495e; }
+        .os-dark .window-header { background: linear-gradient(to right, #1a252f, #2c3e50); color: #ecf0f1; border-bottom-color: #111; }
+        .os-dark .window-body { color: #ecf0f1; }
+        .os-dark .app-title { border-bottom-color: #34495e; }
+        .os-dark .quest-item { background: #2c3e50; border-color: #1a252f; border-left-color: #e74c3c; }
+        .os-dark .quest-item h4 { color: #f1c40f; }
+        .os-dark .premium-card { background: #2c3e50; border-color: #1a252f; color: #ecf0f1; }
+        .os-dark .status-badge { background: #1a252f; color: #2ecc71; border-color: #27ae60; }
+        .os-dark .loading-screen { background: rgba(20, 25, 30, 0.95); }
+        .os-dark .loading-screen p { color: #ecf0f1 !important; }
+    </style>
+</head>
+<body>
+
+    <div id="ui-layer">
+        <div class="hud-panel top-left" id="hud-left">
+            <div id="money-display">💵 $<span id="money">20</span></div>
+            <div id="gems-display">💎 <span id="gems">0</span></div>
+            <div style="font-size: 18px; font-weight: 900; color: #f1c40f; margin-top: 5px;">₿ <span id="hud-btc">0.00000</span></div>
+            <div style="font-size: 14px; font-weight: bold; color: #34495e; margin-top: 5px;">HARI KE-<span id="hud-day">1</span></div>
+            <button id="btn-settings" onclick="openSettings()">⚙️ STATS & SETTING</button>
+        </div>
+
+        <div class="hud-panel top-right" id="hud-right">
+            <div class="inv-header">🎒 TAS: <span id="inv-count">0/5</span></div>
+            <div class="inv-items" style="flex-wrap: wrap; justify-content: flex-end; width: 150px;">
+                <div class="item-badge wheat">🌾 <span id="inv-wheat">0</span></div>
+                <div class="item-badge tomato">🍅 <span id="inv-tomato">0</span></div>
+                <div class="item-badge milk">🥛 <span id="inv-milk">0</span></div>
+                <div class="item-badge coffee">☕ <span id="inv-coffee">0</span></div>
+            </div>
+        </div>
+        
+        <div id="toast-container"></div>
+        
+        <div id="settings-modal" class="hidden">
+            <div class="settings-box glass-panel">
+                <button class="win-close-btn" style="position:absolute; right:15px; top:15px;" onclick="closeSettings()">✖</button>
+                <h2 style="color: #3498db; margin-top:0;">📊 Statistik Toko</h2>
+                <div class="stats-grid">
+                    <div>💵 Total Duit:</div><div style="color:#27ae60; font-weight:bold;">$<span id="stat-money">0</span></div>
+                    <div>🌾 Gandum Terjual:</div><div style="font-weight:bold;"><span id="stat-wheat">0</span>x</div>
+                    <div>🍅 Tomat Terjual:</div><div style="font-weight:bold;"><span id="stat-tomato">0</span>x</div>
+                    <div>🥛 Susu Terjual:</div><div style="font-weight:bold;"><span id="stat-milk">0</span>x</div>
+                    <div>☕ Kopi Terjual:</div><div style="font-weight:bold;"><span id="stat-coffee">0</span>x</div>
+                    <div>🧑 Pelanggan:</div><div style="font-weight:bold;"><span id="stat-cust">0</span> Orang</div>
+                </div>
+                <hr style="border:1px solid rgba(0,0,0,0.1); margin:15px 0;">
+                <button id="btn-darkmode" class="modern-btn" style="background:#2c3e50; color:#f1c40f; width:100%; margin-bottom:10px;" onclick="toggleDarkMode()">🌙 AKTIFKAN HUD DARK MODE</button>
+                <button id="btn-mute" class="modern-btn" style="background:#e74c3c; color:#fff; width:100%;" onclick="toggleMute()">🔈 MATIKAN SUARA</button>
+            </div>
+        </div>
+
+        <div id="monitor-ui" class="hidden">
+            <div id="desktop-screen" class="wp-1">
+                <div id="wp-decor"></div>
+                
+                <div class="desktop-icons">
+                    <div class="app-icon" onclick="openApp('quest', '📜 Quests')"><div class="icon-img">📜</div><span>Quests</span></div>
+                    <div class="app-icon" onclick="openApp('gacha', '🧑‍💼 VIP_Client')"><div class="icon-img">🧑‍💼</div><span>VIP</span></div>
+                    <div class="app-icon" onclick="openApp('crypto', '📈 Miner Pro')"><div class="icon-img">📈</div><span>Miner</span></div>
+                    <div class="app-icon" onclick="openApp('internet', '🌐 Internet')"><div class="icon-img">🌐</div><span>Internet</span></div>
+                    <div class="app-icon" onclick="openApp('themes', '🖼️ Themes')"><div class="icon-img">🖼️</div><span>Themes</span></div>
+                    <div class="app-icon" onclick="openApp('flappy', '🐦 Flappy_Bird')"><div class="icon-img">🐦</div><span>Flappy</span></div>
+                </div>
+
+                <div id="app-window" class="hidden glass-panel">
+                    <div class="window-header" id="window-header">
+                        <span id="window-title" style="font-weight:900; font-size:16px;">App Name</span>
+                        <button class="win-close-btn" onclick="closeApp()">✖</button>
+                    </div>
+                    <div id="app-loading" class="hidden loading-screen">
+                        <div class="spinner"></div><p style="margin-top: 15px; font-weight: bold; color: #2c3e50;">Menyambungkan...</p>
+                    </div>
+                    <div class="window-body" id="app-body">
+                        <div id="app-quest" class="app-view hidden"><h2 class="app-title gradient-text-blue">📋 Misi Harian</h2><div id="quest-list"></div></div>
+                        <div id="app-gacha" class="app-view hidden" style="text-align: center;"><h2 class="app-title gradient-text-purple">✨ VIP Client</h2><div class="premium-card"><div class="crate-icon bounce">🧑‍💼</div><p>Sewa Agen: <strong>100 💎 Gems</strong></p><button class="modern-btn btn-purple" onclick="buyVipCustomer()">BELI PELANGGAN VIP</button></div></div>
+                        
+                        <div id="app-crypto" class="app-view hidden">
+                            <h2 class="app-title gradient-text-gold">🖥️ Terminal Mining</h2>
+                            <div id="crypto-locked" class="premium-card" style="text-align: center; margin-top: 20px;">
+                                <div style="font-size: 60px; margin-bottom: 10px;">🔒</div>
+                                <h3 style="color: #f39c12; margin-top: 0;">Terminal Terkunci</h3>
+                                <p style="color: #7f8c8d; font-weight: bold; margin-bottom: 20px;">Beli lisensi Miner Pro untuk mulai menambang BTC secara otomatis!</p>
+                                <button class="modern-btn btn-orange" onclick="buyMiner()">BELI LISENSI ($100)</button>
+                            </div>
+                            <div id="crypto-unlocked" class="hidden">
+                                <div class="grid-2">
+                                  <div class="premium-card dark-bg" style="padding:15px;">
+                                    <p class="subtitle">SALDO</p><div class="btc-amount" style="font-size:24px;">₿ <span id="ui-btc">0.00000</span></div>
+                                    <button class="modern-btn btn-green w-100" style="padding:8px;" onclick="sellBtc()">JUAL ($10k/BTC)</button>
+                                  </div>
+                                  <div class="premium-card dark-bg" style="padding:15px;">
+                                    <p class="subtitle">VGA Level <span id="ui-pclvl">1</span></p><div style="font-size:13px; margin-bottom:10px;">Speed: <span id="ui-hashrate">0.00005</span>/s</div>
+                                    <button class="modern-btn btn-orange w-100" style="padding:8px;" onclick="upgradePc()">UPGRADE ($<span id="ui-upg-cost">500</span>)</button>
+                                  </div>
+                                </div>
+                                <div class="mining-terminal" id="mining-terminal"></div>
+                            </div>
+                        </div>
+
+                        <div id="app-internet" class="app-view hidden"><h2 class="app-title gradient-text-blue">🌐 Provider Internet</h2><div class="grid-2"><div class="premium-card" style="border-top: 5px solid #3498db; text-align: center;"><h3 style="margin:0; color:#3498db;">Paket 5G</h3><p style="font-weight:900; font-size:24px; color:#2c3e50; margin:15px 0;">2.0 Detik</p><button class="modern-btn btn-blue w-100" onclick="buyInternet(1, 1000)">BELI ($1000)</button></div><div class="premium-card" style="border-top: 5px solid #9b59b6; text-align: center;"><h3 style="margin:0; color:#9b59b6;">Starlink</h3><p style="font-weight:900; font-size:24px; color:#2c3e50; margin:15px 0;">1.0 Detik</p><button class="modern-btn btn-purple w-100" onclick="buyInternet(2, 2500)">BELI ($2500)</button></div></div><div id="internet-status" class="status-badge">Status Saat Ini: Reguler (3 Detik)</div></div>
+                        <div id="app-themes" class="app-view hidden"><h2 class="app-title gradient-text">🎨 Wallpaper</h2><div class="theme-grid"><div class="theme-box wp-1" onclick="setWallpaper('wp-1')">Retro</div><div class="theme-box wp-2" onclick="setWallpaper('wp-2')">Dark</div><div class="theme-box wp-3" onclick="setWallpaper('wp-3')">Anime</div></div></div>
+                        
+                        <div id="app-flappy" class="app-view hidden" style="padding:0; background:#70c5ce; height:100%; position:relative; border-radius:8px; overflow: hidden;">
+                           <canvas id="flappyCanvas" width="570" height="340" style="display:block;"></canvas>
+                           <div id="flappy-ui" style="position:absolute; top:50%; left:50%; transform:translate(-50%, -50%); text-align:center;">
+                              <h2 style="color:white; text-shadow: 2px 2px 0 #000; margin:0 0 10px 0; font-size:36px;">FLAPPY BIRD</h2>
+                              <div id="flappy-start-high" style="color:#f1c40f; font-weight:900; font-size:18px; margin-bottom:15px; text-shadow: 1px 1px 0 #000;">High Score: 0</div>
+                              <button onclick="startFlappy()" class="modern-btn btn-orange" style="font-size:18px; padding:12px 30px;">PLAY NOW</button>
+                           </div>
+                           <div id="flappy-score" style="position:absolute; top:15px; left:15px; color:white; font-size:32px; font-weight:900; -webkit-text-stroke: 1px black; display:none;">0</div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="taskbar">
+                    <div style="display:flex; flex:1; align-items:center;">
+                        <button class="start-btn">❖ Start</button>
+                        <div id="taskbar-apps" style="display:flex; gap:10px; margin-left:15px;"></div>
+                    </div>
+                    <div id="os-dark-btn" class="os-dark-toggle" onclick="toggleOSDarkMode()" title="Toggle Dark Mode">🌙</div>
+                    <div id="desktop-clock" class="desktop-clock">00:00:00</div>
+                    <button class="modern-btn btn-red" style="padding:6px 12px; margin-left: 15px;" onclick="closeMonitor()">⏻ Tutup</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="tutorial">
+            [WASD/Analog] Tekan layar/gerak untuk mulai! 🖥️
+            <span onclick="closeTutorial()" style="margin-left:20px; color:#ff7675; cursor:pointer; font-size:18px; font-weight:900;">✖</span>
+        </div>
+    </div>
+    
+    <canvas id="gameCanvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        function resize() { 
+            canvas.width = window.innerWidth; 
+            canvas.height = window.innerHeight; 
+        }
+        window.addEventListener('resize', resize); 
+        resize();
+
+        // 1. DATA & SETTINGS GLOBAL
+        const MAP_W = 1800; 
+        const STORE_H = 1000; 
+        const PARK_H = 400;
+        const MAP_H = STORE_H + PARK_H; 
+
+        let money = 20; 
+        let gems = 0; 
+        let vipUnlocked = false; 
+        let isMonitorOpen = false;
+
+        let gameTime = 0; 
+        let dayCount = 1;
+        const TIME_SPEED = 2; 
+
+        let minerUnlocked = false; 
+        let btc = 0.00000; 
+        let btcRate = 0.00005; 
+        let btcTimer = 0; 
+        let pcLevel = 1; 
+        let pcUpgCost = 500;
+
+        let floatTexts = []; 
+        let checkoutQueue = []; 
+        const ITEM_PRICES = { 'wheat': 5, 'tomato': 8, 'milk': 12, 'coffee': 25 };
+        let solidObjects = [];
+        let isDarkMode = false;
+        let isOSDark = false;
+
+        let internetLevel = 0; 
+        const loadingTimes = [3000, 2000, 1000]; 
+        let isAppLoading = false;
+
+        let fbPlaying = false; 
+        let birdY = 130; 
+        let birdV = 0; 
+        let fbPipes = []; 
+        let fbScore = 0; 
+        let fbHighScore = 0; 
+        let fbFrames = 0;
+
+        let stats = { 
+            totalMoneyEarned: 20, 
+            wheatSold: 0, 
+            tomatoSold: 0, 
+            milkSold: 0, 
+            coffeeSold: 0,
+            customersServed: 0 
+        };
+
+        let quests = [
+            { id: 1, title: 'Petani Pemula', desc: 'Jual 30 Gandum', target: 30, type: 'wheatSold', reward: 30, claimed: false },
+            { id: 2, title: 'Juragan Tomat', desc: 'Jual 20 Tomat', target: 20, type: 'tomatoSold', reward: 40, claimed: false },
+            { id: 3, title: 'Layanan Prima', desc: 'Layanin 25 Pelanggan', target: 25, type: 'customersServed', reward: 50, claimed: false }
+        ];
+
+        let terminalMessages = [
+            "[MINER] Block hash found: 0x8f9a2b...",
+            "[SYS] Ping to pool: 45ms (Excellent)",
+            "[GPU-1] Temp: 65C | Fan: 80%",
+            "[MINER] Accepted share (Difficulty 45M)",
+            "[SYS] Recalculating merkle root...",
+            "[NET] Receiving new job from stratum",
+            "[GPU-1] Hashrate stable..."
+        ];
+        let termInterval;
+
+        // AUDIO SETUP
+        const bgmDay = new Audio('https://actions.google.com/sounds/v1/ambiences/barn_swallows.ogg');
+        const bgmNight = new Audio('https://actions.google.com/sounds/v1/ambiences/night_crickets.ogg');
+        bgmDay.loop = true; bgmDay.volume = 0.4;
+        bgmNight.loop = true; bgmNight.volume = 0.5;
+        let audioStarted = false;
+        let isMuted = false;
+
+        function initAudio() {
+            if (audioStarted || isMuted) return;
+            audioStarted = true;
+            updateBGM();
+        }
+        window.addEventListener('pointerdown', initAudio);
+        window.addEventListener('keydown', initAudio);
+
+        function updateBGM() {
+            if (!audioStarted || isMuted) return;
+            let tp = (gameTime % 24000) / 24000;
+            if (tp > 0.5) {
+                if (!bgmDay.paused) bgmDay.pause();
+                if (bgmNight.paused) bgmNight.play().catch(e => console.log(e));
+            } else {
+                if (!bgmNight.paused) bgmNight.pause();
+                if (bgmDay.paused) bgmDay.play().catch(e => console.log(e));
+            }
+        }
+
+        function toggleMute() {
+            isMuted = !isMuted;
+            bgmDay.muted = isMuted;
+            bgmNight.muted = isMuted;
+            let btnMute = document.getElementById('btn-mute');
+            if (isMuted) {
+                btnMute.innerText = "🔊 NYALAKAN SUARA";
+                btnMute.style.background = "#2ecc71";
+            } else {
+                btnMute.innerText = "🔈 MATIKAN SUARA";
+                btnMute.style.background = "#e74c3c";
+                if (audioStarted) updateBGM();
+            }
+        }
+
+        // 2. UI FUNCTIONS
+        function showToast(msg, type = 'success') {
+            let container = document.getElementById('toast-container');
+            if (!container) return; 
+            let toast = document.createElement('div');
+            toast.className = `toast ${type}`; toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(() => { toast.style.animation = 'fadeOut 0.4s forwards'; setTimeout(() => toast.remove(), 400); }, 2500);
+        }
+
+        function closeTutorial() { document.getElementById('tutorial').style.display = 'none'; }
+
+        function openSettings() {
+            document.getElementById('settings-modal').classList.remove('hidden');
+            document.getElementById('stat-money').innerText = Math.floor(stats.totalMoneyEarned);
+            document.getElementById('stat-wheat').innerText = stats.wheatSold; document.getElementById('stat-tomato').innerText = stats.tomatoSold;
+            document.getElementById('stat-milk').innerText = stats.milkSold; document.getElementById('stat-coffee').innerText = stats.coffeeSold;
+            document.getElementById('stat-cust').innerText = stats.customersServed;
+        }
+
+        function closeSettings() { document.getElementById('settings-modal').classList.add('hidden'); }
+
+        function toggleDarkMode() {
+            isDarkMode = !isDarkMode;
+            const hudLeft = document.getElementById('hud-left'), hudRight = document.getElementById('hud-right'), settingsBox = document.querySelector('.settings-box'), btnDarkMode = document.getElementById('btn-darkmode');
+            if (isDarkMode) {
+                hudLeft.classList.add('dark-hud'); hudRight.classList.add('dark-hud'); settingsBox.classList.add('dark-modal'); 
+                btnDarkMode.innerText = "☀️ AKTIFKAN LIGHT MODE"; btnDarkMode.style.color = "#fff";
+            } else {
+                hudLeft.classList.remove('dark-hud'); hudRight.classList.remove('dark-hud'); settingsBox.classList.remove('dark-modal'); 
+                btnDarkMode.innerText = "🌙 AKTIFKAN DARK MODE"; btnDarkMode.style.color = "#f1c40f";
+            }
+        }
+
+        function toggleOSDarkMode() {
+            isOSDark = !isOSDark;
+            const ui = document.getElementById('monitor-ui'), btn = document.getElementById('os-dark-btn');
+            if (isOSDark) { ui.classList.add('os-dark'); btn.innerText = "☀️"; } 
+            else { ui.classList.remove('os-dark'); btn.innerText = "🌙"; }
+        }
+
+        function updateClock() {
+            const clockEl = document.getElementById('desktop-clock');
+            if (clockEl) { const now = new Date(); clockEl.innerText = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', second:'2-digit'}); }
+        }
+        setInterval(updateClock, 1000); updateClock(); 
+
+        // 3. WINDOW DRAG LOGIC
+        const appWindowNode = document.getElementById('app-window');
+        const winHeaderNode = document.getElementById('window-header');
+        let isDragging = false; let dragOffsetX = 0; let dragOffsetY = 0;
+
+        if (winHeaderNode) {
+            winHeaderNode.addEventListener('mousedown', startDrag);
+            winHeaderNode.addEventListener('touchstart', startDrag, {passive: false});
+        }
+
+        function startDrag(e) {
+            if (e.target.classList.contains('win-close-btn')) return;
+            isDragging = true;
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            let rect = appWindowNode.getBoundingClientRect();
+            dragOffsetX = clientX - rect.left; dragOffsetY = clientY - rect.top;
+        }
+
+        document.addEventListener('mousemove', doDrag);
+        document.addEventListener('touchmove', doDrag, {passive: false});
+
+        function doDrag(e) {
+            if (!isDragging) return;
+            let clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            let clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            let desktopRect = document.getElementById('desktop-screen').getBoundingClientRect();
+            
+            let newX = clientX - desktopRect.left - dragOffsetX;
+            let newY = clientY - desktopRect.top - dragOffsetY;
+            
+            newX = Math.max(0, Math.min(newX, desktopRect.width - appWindowNode.offsetWidth));
+            newY = Math.max(0, Math.min(newY, desktopRect.height - appWindowNode.offsetHeight - 50)); 
+            appWindowNode.style.left = newX + 'px'; appWindowNode.style.top = newY + 'px';
+        }
+
+        document.addEventListener('mouseup', () => isDragging = false);
+        document.addEventListener('touchend', () => isDragging = false);
+
+        // 4. INPUT & PHYSICS
+        let keys = { w: false, a: false, s: false, d: false, ArrowUp: false, ArrowLeft: false, ArrowDown: false, ArrowRight: false };
+        window.addEventListener('keydown', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = true; });
+        window.addEventListener('keyup', e => { if (keys.hasOwnProperty(e.key)) keys[e.key] = false; });
+
+        let joy = { active: false, startX: 0, startY: 0, currX: 0, currY: 0 };
+        window.addEventListener('pointerdown', (e) => { 
+            if (e.target.id !== 'gameCanvas' && e.target.id !== 'flappyCanvas') return; 
+            joy.active = true; joy.startX = e.clientX; joy.startY = e.clientY; joy.currX = e.clientX; joy.currY = e.clientY; 
+        });
+        window.addEventListener('pointermove', (e) => { if (joy.active) { joy.currX = e.clientX; joy.currY = e.clientY; } });
+        window.addEventListener('pointerup', () => { joy.active = false; });
+
+        function getDirection() {
+            if (isMonitorOpen) return { dx: 0, dy: 0 };
+            let dx = 0, dy = 0;
+            if (keys.w || keys.ArrowUp) dy -= 1; if (keys.s || keys.ArrowDown) dy += 1; if (keys.a || keys.ArrowLeft) dx -= 1; if (keys.d || keys.ArrowRight) dx += 1;
+            
+            if (joy.active) { 
+                let dist = Math.hypot(joy.currX - joy.startX, joy.currY - joy.startY); 
+                if (dist > 5) { dx = (joy.currX - joy.startX) / 40; dy = (joy.currY - joy.startY) / 40; } 
+            }
+            
+            let dist = Math.hypot(dx, dy); 
+            if (dist > 1) { dx /= dist; dy /= dist; } 
+            return { dx, dy };
+        }
+
+        function checkCollision(cx, cy, radius) {
+            for (let i = 0; i < solidObjects.length; i++) {
+                let s = solidObjects[i];
+                let nearX = Math.max(s.x, Math.min(cx, s.x + s.w));
+                let nearY = Math.max(s.y, Math.min(cy, s.y + s.h));
+                let distX = cx - nearX; let distY = cy - nearY;
+                if ((distX * distX + distY * distY) < radius * radius) { return true; }
+            }
+            return false;
+        }
+
+        function tryMove(obj, dx, dy, radius) {
+            if (!checkCollision(obj.x + dx, obj.y, radius)) { obj.x += dx; }
+            if (!checkCollision(obj.x, obj.y + dy, radius)) { obj.y += dy; }
+        }
+
+        function createFloatText(txt, x, y, color) { floatTexts.push({ txt: txt, x: x, y: y, color: color, life: 1 }); }
+
+        function drawCharacter(ctx, x, y, angle, headColor, bodyColor, wobble, equip = {}) {
+            ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.lineWidth = 3; ctx.strokeStyle = '#1a252f'; 
+            
+            ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(5, 12, 18, 12, 0, 0, Math.PI * 2); ctx.fill(); 
+            ctx.translate(0, Math.sin(wobble) * 4);
+            
+            if (equip.backpack) { ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.roundRect(-15, -18, 30, 15, 5); ctx.fill(); ctx.stroke(); }
+            ctx.fillStyle = bodyColor; ctx.beginPath(); ctx.roundRect(-20, -10, 40, 22, 10); ctx.fill(); ctx.stroke();
+            
+            let swing = Math.sin(wobble) * 12;
+            if (equip.shoes) { 
+                ctx.fillStyle = '#e74c3c'; 
+                ctx.beginPath(); ctx.roundRect(-16, 8 + swing, 10, 14, 4); ctx.fill(); ctx.stroke(); 
+                ctx.beginPath(); ctx.roundRect(6, 8 - swing, 10, 14, 4); ctx.fill(); ctx.stroke(); 
+            }
+            
+            ctx.fillStyle = '#f1c27d'; ctx.beginPath(); ctx.arc(-22, swing, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke(); 
+            ctx.beginPath(); ctx.arc(22, -swing, 8, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            
+            ctx.fillStyle = headColor; ctx.beginPath(); ctx.arc(0, 0, 16, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+            
+            if (equip.hat) { ctx.fillStyle = equip.hat; ctx.beginPath(); ctx.arc(0, -3, 14, Math.PI, 0); ctx.fill(); ctx.stroke(); ctx.fillRect(-18, -3, 36, 5); }
+            ctx.restore();
+        }
+
+        // 5. GAME CLASSES
+        class Player {
+            constructor() { 
+                this.x = MAP_W / 2; this.y = STORE_H / 2 + 100; this.speed = 4.0; this.radius = 12; 
+                this.inv = { wheat: 0, tomato: 0, milk: 0, coffee: 0 }; this.maxInv = 5; this.angle = 0; this.wobble = 0; 
+            }
+            get totalInv() { return this.inv.wheat + this.inv.tomato + this.inv.milk + this.inv.coffee; }
+            update() {
+                let dir = getDirection();
+                if (dir.dx !== 0 || dir.dy !== 0) { 
+                    tryMove(this, dir.dx * this.speed, dir.dy * this.speed, this.radius); 
+                    this.angle = Math.atan2(dir.dy, dir.dx) + Math.PI / 2; this.wobble += 0.35; 
+                } else { this.wobble = 0; }
+                this.x = Math.max(this.radius, Math.min(MAP_W - this.radius, this.x)); 
+                this.y = Math.max(this.radius, Math.min(MAP_H - this.radius, this.y)); 
+            }
+            draw() { drawCharacter(ctx, this.x, this.y, this.angle, '#f1c27d', '#3498db', this.wobble, { backpack: this.maxInv > 5, shoes: this.speed > 4.0 }); }
+        }
+
+        class Entrance {
+            constructor(x, y) { this.x = x; this.y = y; this.width = 260; this.height = 40; this.openAmount = 0; }
+            update() {
+                let isNear = false;
+                if (typeof player !== 'undefined' && Math.hypot(player.x - this.x, player.y - this.y) < 180) { isNear = true; }
+                if (typeof customers !== 'undefined') { customers.forEach(c => { if (Math.hypot(c.x - this.x, c.y - this.y) < 180) isNear = true; }); }
+                if (isNear) { this.openAmount = Math.min(1, this.openAmount + 0.1); } else { this.openAmount = Math.max(0, this.openAmount - 0.05); }
+            }
+            draw() {
+                ctx.fillStyle = '#bdc3c7'; ctx.fillRect(this.x - this.width / 2, this.y - this.height / 2 - 10, this.width, this.height + 20); 
+                let slide = this.openAmount * (this.width / 2 - 10); 
+                ctx.lineWidth = 4; ctx.fillStyle = 'rgba(52, 152, 219, 0.4)'; ctx.strokeStyle = '#2c3e50';
+                
+                ctx.beginPath(); ctx.roundRect(this.x - this.width / 2 - slide, this.y - this.height / 2 + 5, this.width / 2, this.height - 10, 4); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.roundRect(this.x + slide, this.y - this.height / 2 + 5, this.width / 2, this.height - 10, 4); ctx.fill(); ctx.stroke();
+                
+                ctx.fillStyle = '#7f8c8d'; ctx.strokeStyle = '#2c3e50'; ctx.lineWidth = 3;
+                ctx.beginPath(); ctx.roundRect(this.x - this.width / 2 - 25, this.y - this.height / 2 - 20, 20, 80, 5); ctx.fill(); ctx.stroke();
+                ctx.beginPath(); ctx.roundRect(this.x + this.width / 2 + 5, this.y - this.height / 2 - 20, 20, 80, 5); ctx.fill(); ctx.stroke();
+                
+                ctx.fillStyle = this.openAmount > 0.5 ? '#2ecc71' : '#e74c3c';
+                ctx.beginPath(); ctx.arc(this.x - this.width / 2 - 15, this.y - this.height / 2 - 5, 5, 0, Math.PI * 2); ctx.fill();
+                ctx.beginPath(); ctx.arc(this.x + this.width / 2 + 15, this.y - this.height / 2 - 5, 5, 0, Math.PI * 2); ctx.fill();
+            }
+        }
+
+        class Farm {
+            constructor(x, y, type, price, label, reqFarmIndex) { 
+                this.x = x; this.y = y; this.type = type; this.label = label; this.reqFarmIndex = reqFarmIndex; 
+                
+                if (type === 'wheat') this.emoji = '🌾'; else if (type === 'tomato') this.emoji = '🍅'; else if (type === 'milk') this.emoji = '🥛'; else if (type === 'coffee') this.emoji = '☕';
+                
+                this.price = price; this.unlocked = false; this.grown = 0; this.timer = 0; this.maxGrown = 5; this.upgPrice = Math.floor(price * 1.5) + 30; 
+                this.buyTimer = 0; this.upgTimer = 0;
+            }
+            
+            checkVisibility() {
+                if (this.reqFarmIndex === -1) return true; 
+                return farms[this.reqFarmIndex].unlocked; 
+            }
+            
+            update() {
+                if (!this.checkVisibility()) return; 
+                
+                if (!this.unlocked) { 
+                    if (Math.hypot(player.x - this.x, player.y - this.y) < 70 && money >= this.price) {
+                        this.buyTimer++;
+                        if (this.buyTimer >= 120) { 
+                            money -= this.price; this.unlocked = true; 
+                            createFloatText(`-$${this.price}`, this.x, this.y, '#e74c3c'); this.buyTimer = 0;
+                        }
+                    } else { this.buyTimer = 0; }
+                } else {
+                    if (this.maxGrown < 9 && Math.hypot(player.x - this.x, player.y - (this.y + 75)) < 35 && money >= this.upgPrice) { 
+                        this.upgTimer++;
+                        if (this.upgTimer >= 120) { 
+                            money -= this.upgPrice; this.maxGrown += 2; this.upgPrice *= 2; 
+                            createFloatText(`CAP +2`, this.x, this.y + 75, '#2ecc71'); this.upgTimer = 0;
+                        }
+                    } else { this.upgTimer = 0; }
+                    
+                    if (this.grown < this.maxGrown) { 
+                        this.timer++; 
+                        if (this.timer > (this.type === 'coffee' ? 250 : 150)) { this.grown++; this.timer = 0; } 
+                    }
+                    if (Math.hypot(player.x - this.x, player.y - this.y) < 85 && this.grown > 0 && player.totalInv < player.maxInv) { 
+                        this.grown--; player.inv[this.type]++; 
+                        createFloatText(`+1 ${this.emoji}`, this.x, this.y - 30, '#fff'); 
+                    }
+                }
+            }
+            
+            draw() {
+                if (!this.checkVisibility()) return; 
+                
+                if (!this.unlocked) { 
+                    ctx.fillStyle = 'rgba(46, 204, 113, 0.4)'; 
+                    ctx.beginPath(); ctx.roundRect(this.x - 60, this.y - 60, 120, 120, 15); ctx.fill(); ctx.stroke(); 
+                    
+                    ctx.fillStyle = '#fff'; ctx.font = "bold 14px Arial"; ctx.textAlign = "center"; 
+                    ctx.fillText(this.label, this.x, this.y - 10); 
+                    ctx.fillStyle = '#f1c40f'; ctx.font = "bold 20px Arial"; ctx.fillText(`$${this.price}`, this.x, this.y + 15); 
+                    
+                    if (this.buyTimer > 0) {
+                        ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(this.x - 30, this.y - 35, 60, 8);
+                        ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 30, this.y - 35, 60 * (this.buyTimer / 120), 8);
+                    }
+                } else {
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.beginPath(); ctx.roundRect(this.x - 55, this.y - 55, 120, 120, 10); ctx.fill();
+                    
+                    let farmColor = '#7cb342';
+                    if (this.type === 'wheat') farmColor = '#8d6e63'; else if (this.type === 'tomato') farmColor = '#4e342e'; else if (this.type === 'coffee') farmColor = '#3e2723';
+                    
+                    ctx.fillStyle = farmColor; ctx.beginPath(); ctx.roundRect(this.x - 60, this.y - 60, 120, 120, 10); ctx.fill();
+                    
+                    if (this.type === 'wheat') { 
+                        ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 4; 
+                        for(let j = 0; j < 4; j++) { ctx.beginPath(); ctx.moveTo(this.x - 50, this.y - 40 + j * 25); ctx.lineTo(this.x + 50, this.y - 40 + j * 25); ctx.stroke(); } 
+                    } else if (this.type === 'tomato') { 
+                        ctx.fillStyle = '#d35400'; 
+                        for(let j = 0; j < this.maxGrown; j++) { let ox = (j % 3) * 30 - 30; let oy = Math.floor(j / 3) * 25 - 30; ctx.fillRect(this.x + ox - 2, this.y + oy - 10, 4, 20); } 
+                    } else if (this.type === 'milk') { 
+                        ctx.strokeStyle = '#558b2f'; ctx.lineWidth = 5; ctx.strokeRect(this.x - 55, this.y - 55, 110, 110); 
+                        ctx.font = "50px Arial"; ctx.fillText('🐄', this.x, this.y + 10 + Math.sin(Date.now() / 300) * 5); 
+                    } else if (this.type === 'coffee') {
+                        ctx.strokeStyle = '#21130d'; ctx.lineWidth = 5; 
+                        for(let j = 0; j < 3; j++) { ctx.beginPath(); ctx.moveTo(this.x - 40, this.y - 30 + j * 30); ctx.lineTo(this.x + 40, this.y - 30 + j * 30); ctx.stroke(); }
+                    }
+                    
+                    ctx.font = "28px Arial";
+                    for(let i = 0; i < this.maxGrown; i++) {
+                        let ox = (this.type === 'milk') ? (i % 3) * 25 - 25 : (i % 3) * 30 - 30; 
+                        let oy = (this.type === 'milk') ? Math.floor(i / 3) * 15 + 25 : Math.floor(i / 3) * 25 - 30;
+                        
+                        if (i < this.grown) { 
+                            ctx.save(); ctx.translate(this.x + ox, this.y + oy); ctx.rotate(Math.sin(Date.now() / 500 + i) * 0.1); ctx.fillText(this.type === 'milk' ? '🥛' : this.emoji, 0, 0); ctx.restore(); 
+                        }
+                        else if (i === this.grown && this.timer > 0) { 
+                            let prog = this.timer / (this.type === 'coffee' ? 250 : 150); let growEmj = '🌱'; 
+                            if (this.type === 'tomato' || this.type === 'coffee') growEmj = prog < 0.4 ? '🌱' : prog < 0.8 ? '🪴' : this.emoji; else if (this.type === 'wheat') growEmj = prog < 0.4 ? '🌱' : prog < 0.8 ? '🌿' : '🌾'; else if (this.type === 'milk') growEmj = prog < 0.5 ? '🪣' : '🥛'; 
+                            ctx.save(); ctx.translate(this.x + ox, this.y + oy); ctx.scale(0.5 + prog * 0.5, 0.5 + prog * 0.5); ctx.fillText(growEmj, 0, 0); ctx.restore(); 
+                        }
+                    }
+                    
+                    if (this.maxGrown < 9) { 
+                        ctx.fillStyle = money >= this.upgPrice ? 'rgba(46, 204, 113, 0.9)' : 'rgba(243, 156, 18, 0.9)'; 
+                        ctx.beginPath(); ctx.roundRect(this.x - 35, this.y + 63, 70, 24, 5); ctx.fill(); 
+                        ctx.fillStyle = '#fff'; ctx.font = "bold 10px Arial"; ctx.fillText(`$${this.upgPrice}`, this.x, this.y + 78); 
+                        if (this.upgTimer > 0) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(this.x - 30, this.y + 50, 60, 6); ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 30, this.y + 50, 60 * (this.upgTimer / 120), 6); }
+                    }
+                }
+            }
+        }
+
+        class Shelf {
+            constructor(x, y, type) { 
+                this.x = x; this.y = y; this.type = type; 
+                if (type === 'wheat') this.emoji = '🌾'; else if (type === 'tomato') this.emoji = '🍅'; else if (type === 'milk') this.emoji = '🥛'; else if (type === 'coffee') this.emoji = '☕';
+                this.stock = 0; this.maxStock = 12; this.activeCustomers = 0; 
+            }
+            checkVisibility() { let f = farms.find(farm => farm.type === this.type); return f ? f.unlocked : false; }
+            update() { 
+                if (!this.checkVisibility()) return;
+                solidObjects.push({ x: this.x - 70, y: this.y - 30, w: 140, h: 60 }); 
+                if (Math.hypot(player.x - this.x, player.y - (this.y + 30)) < 90 && player.inv[this.type] > 0 && this.stock < this.maxStock) { player.inv[this.type]--; this.stock++; } 
+            }
+            draw() {
+                if (!this.checkVisibility()) return;
+                ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.roundRect(this.x - 70, this.y - 40, 150, 90, 8); ctx.fill(); 
+                ctx.fillStyle = '#bdc3c7'; ctx.beginPath(); ctx.roundRect(this.x - 75, this.y - 50, 150, 90, 8); ctx.fill(); 
+                ctx.fillStyle = '#34495e'; ctx.fillRect(this.x - 65, this.y - 40, 130, 70); 
+                ctx.fillStyle = '#ecf0f1'; ctx.fillRect(this.x - 65, this.y - 10, 130, 6); ctx.fillRect(this.x - 65, this.y + 15, 130, 6);
+                
+                let shelfColor = '#3498db';
+                if (this.type === 'wheat') shelfColor = '#e67e22'; else if (this.type === 'tomato') shelfColor = '#e74c3c'; else if (this.type === 'coffee') shelfColor = '#5d4037';
+                
+                ctx.fillStyle = shelfColor; ctx.beginPath(); ctx.roundRect(this.x - 40, this.y - 60, 80, 20, 5); ctx.fill();
+                ctx.fillStyle = '#fff'; ctx.font = "bold 12px Arial"; ctx.textAlign = "center"; ctx.fillText(this.type.toUpperCase(), this.x, this.y - 46); 
+                ctx.font = "22px Arial"; 
+                for(let i = 0; i < this.stock; i++) { let ox = (i % 6) * 20 - 50; let oy = i < 6 ? -15 : 10; ctx.fillText(this.emoji, this.x + ox, this.y + oy); } 
+            }
+        }
+
+        // 6. NPC & CUSTOMERS
+        class CashierWorker {
+            constructor(x, y) { this.x = x; this.y = y; this.wobble = 0; }
+            update() { this.wobble += 0.05; }
+            draw() { drawCharacter(ctx, this.x, this.y, Math.PI, '#f1c27d', '#2ecc71', this.wobble, {hat: '#e74c3c'}); }
+        }
+
+        class Worker {
+            constructor(x, y) { this.x = x; this.y = y; this.angle = 0; this.wobble = 0; this.radius = 12; this.state = 'IDLE'; this.target = null; this.inventory = []; }
+            get speed() { return player.speed * 0.8; } 
+            update() {
+                if (this.state === 'IDLE') {
+                    this.wobble = 0;
+                    if (this.inventory.length < 2) {
+                        let farmTarget = null;
+                        for (let i = 0; i < farms.length; i++) {
+                            let f = farms[i];
+                            if (f.unlocked && f.grown > 0) {
+                                let shelfTarget = shelves.find(sh => sh.type === f.type);
+                                let carrying = this.inventory.filter(inv => inv === f.type).length;
+                                if (shelfTarget && (shelfTarget.stock + carrying) < shelfTarget.maxStock) { farmTarget = f; break; }
+                            }
+                        }
+                        if (farmTarget) { this.target = { x: farmTarget.x, y: farmTarget.y + 75 }; this.state = 'GO_FARM'; this.farmRef = farmTarget; } 
+                        else if (this.inventory.length > 0) { this.state = 'GO_SHELF_DECIDE'; }
+                    } else { this.state = 'GO_SHELF_DECIDE'; }
+                } 
+                else if (this.state === 'GO_FARM') {
+                    this.wobble += 0.25; this.moveTowards(this.target.x, this.target.y);
+                    if (Math.hypot(this.x - this.target.x, this.y - this.target.y) < 20) { 
+                        if (this.farmRef.grown > 0) { this.farmRef.grown--; this.inventory.push(this.farmRef.type); } this.state = 'IDLE'; 
+                    }
+                } 
+                else if (this.state === 'GO_SHELF_DECIDE') { 
+                    let shelfTarget = shelves.find(s => s.type === this.inventory[0]); 
+                    this.target = { x: shelfTarget.x, y: shelfTarget.y + 75 }; this.state = 'GO_SHELF'; this.shelfRef = shelfTarget;
+                } 
+                else if (this.state === 'GO_SHELF') {
+                    this.wobble += 0.25; this.moveTowards(this.target.x, this.target.y);
+                    if (Math.hypot(this.x - this.target.x, this.y - this.target.y) < 20) { 
+                        if (this.shelfRef.stock < this.shelfRef.maxStock) { this.shelfRef.stock++; this.inventory.shift(); this.state = (this.inventory.length > 0) ? 'GO_SHELF_DECIDE' : 'IDLE'; } 
+                        else { this.state = 'WAIT_AT_SHELF'; this.wobble = 0; this.angle = 0; } 
+                    }
+                } 
+                else if (this.state === 'WAIT_AT_SHELF') { 
+                    this.wobble = 0; this.angle = 0; 
+                    if (this.shelfRef.stock < this.shelfRef.maxStock) { this.shelfRef.stock++; this.inventory.shift(); this.state = (this.inventory.length > 0) ? 'GO_SHELF_DECIDE' : 'IDLE'; } 
+                }
+            }
+            moveTowards(tx, ty) { 
+                let dx = tx - this.x, dy = ty - this.y; let dist = Math.hypot(dx, dy); 
+                if (dist > this.speed) { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; this.angle = Math.atan2(dy, dx) + Math.PI / 2; } 
+                else { this.x = tx; this.y = ty; } 
+            }
+            draw() { 
+                drawCharacter(ctx, this.x, this.y, this.angle, '#f1c27d', '#e67e22', this.wobble); 
+                for (let i = 0; i < this.inventory.length; i++) {
+                    let type = this.inventory[i]; let emj = type === 'wheat' ? '🌾' : type === 'tomato' ? '🍅' : type === 'milk' ? '🥛' : '☕'; 
+                    ctx.fillStyle = '#fff'; ctx.font = "20px Arial"; ctx.fillText(emj, this.x, this.y - 30 - (i * 15)); 
+                }
+            }
+        }
+
+        class Customer {
+            constructor(type, car) {
+                this.myCar = car; this.x = car.x; this.y = car.y; this.speed = 2.2; 
+                this.angle = 0; this.wobble = 0; this.radius = 12; this.state = 'WANDER'; 
+                this.wantedType = type; this.wantedAmount = Math.floor(Math.random() * 2) + 1; this.cartValue = 0; this.pickTimer = 0; this.payTimer = 0;
+                
+                this.isVip = vipUnlocked && Math.random() < 0.3; 
+                if (this.isVip) { this.skin = '#f1c40f'; this.shirt = '#2c3e50'; this.size = 1.1; this.speed = 2.6; this.wantedAmount = 3; } 
+                else { this.skin = ['#f1c27d', '#e0b896', '#8d5524', '#ffdbac'][Math.floor(Math.random() * 4)]; this.shirt = ['#9b59b6', '#1abc9c', '#e74c3c', '#f1c40f', '#34495e'][Math.floor(Math.random() * 5)]; this.size = 0.8 + Math.random() * 0.4; }
+                
+                this.wanderTarget = { x: MAP_W/2 + (Math.random() - 0.5) * 500, y: STORE_H/2 + (Math.random() - 0.5) * 300 };
+            }
+            
+            update() {
+                let inQueue = this.state === 'GO_REGISTER' || this.state === 'WAIT_PAY' || this.state === 'PICK_ITEM';
+                if (!inQueue) { 
+                    this.wobble += 0.2; 
+                    for(let i = 0; i < customers.length; i++) { let other = customers[i]; if(other !== this && Math.hypot(this.x - other.x, this.y - other.y) < 35) { this.x += (this.x - other.x) * 0.05; this.y += (this.y - other.y) * 0.05; } }
+                }
+                
+                let middleWay = MAP_W / 2; 
+                
+                if (this.state === 'WANDER') { 
+                    this.moveTowards(middleWay, STORE_H - 100); 
+                    if(Math.hypot(this.x - middleWay, this.y - (STORE_H - 100)) < 20) this.state = 'FIND_SHELF'; 
+                }
+                else if (this.state === 'FIND_SHELF') { 
+                    let targetShelf = shelves.find(sh => sh.type === this.wantedType && sh.stock >= this.wantedAmount && sh.activeCustomers < 2 && sh.checkVisibility()); 
+                    if (targetShelf) { targetShelf.activeCustomers++; this.target = { x: targetShelf.x, y: targetShelf.y + 75 }; this.state = 'GO_SHELF'; this.shelfRef = targetShelf; } 
+                    else { this.moveTowards(this.wanderTarget.x, this.wanderTarget.y); if(Math.hypot(this.x - this.wanderTarget.x, this.y - this.wanderTarget.y) < 20) { this.wanderTarget = { x: MAP_W/2 + (Math.random() - 0.5) * 500, y: STORE_H/2 + (Math.random() - 0.5) * 300 }; } } 
+                } 
+                else if (this.state === 'GO_SHELF') { 
+                    this.moveTowards(this.target.x, this.target.y); 
+                    if (Math.hypot(this.x - this.target.x, this.y - this.target.y) < 5) { this.state = 'PICK_ITEM'; this.pickTimer = 0; } 
+                }
+                else if (this.state === 'PICK_ITEM') { 
+                    this.pickTimer++; 
+                    if (this.pickTimer >= 60) { 
+                        this.shelfRef.activeCustomers--; let taken = Math.min(this.wantedAmount, this.shelfRef.stock); this.shelfRef.stock -= taken; 
+                        this.cartValue = Math.floor(taken * ITEM_PRICES[this.wantedType] * (this.isVip ? 1.5 : 1)); 
+                        if(taken > 0) { 
+                            if(this.wantedType === 'wheat') stats.wheatSold += taken; if(this.wantedType === 'tomato') stats.tomatoSold += taken; if(this.wantedType === 'milk') stats.milkSold += taken; if(this.wantedType === 'coffee') stats.coffeeSold += taken; 
+                            checkoutQueue.push(this); this.state = 'GO_REGISTER_WAYPOINT'; 
+                        } else { this.state = 'FIND_SHELF'; } 
+                    } 
+                }
+                else if (this.state === 'GO_REGISTER_WAYPOINT') { this.moveTowards(middleWay, this.y); if(Math.hypot(this.x - middleWay, 0) < 10) { this.state = 'GO_REGISTER'; } }
+                else if (this.state === 'GO_REGISTER') { 
+                    let queueIndex = checkoutQueue.indexOf(this); let targetX = register.x, targetY = register.y + 60 + (queueIndex * 45); 
+                    this.moveTowards(targetX, targetY); 
+                    if (Math.hypot(this.x - targetX, this.y - targetY) < 5) { this.x = targetX; this.y = targetY; this.angle = 0; this.wobble = 0; if (queueIndex === 0) this.state = 'WAIT_PAY'; } 
+                }
+                else if (this.state === 'WAIT_PAY') { 
+                    this.angle = 0; this.wobble = 0; let nearCashier = cashierWorker || Math.hypot(player.x - register.x, player.y - register.y) < 130; 
+                    if (nearCashier) { 
+                        this.payTimer++; 
+                        if(this.payTimer >= (cashierWorker ? 180 : 90)) { register.moneyPile += this.cartValue; stats.customersServed++; checkoutQueue.shift(); this.state = 'EXIT_PATH_1'; } 
+                    } else this.payTimer = 0; 
+                } 
+                else if (this.state === 'EXIT_PATH_1') { this.moveTowards(middleWay, register.y + 60); if(Math.hypot(this.x - middleWay, 0) < 10) this.state = 'EXIT_PATH_2'; } 
+                else if (this.state === 'EXIT_PATH_2') { this.moveTowards(middleWay, STORE_H - 100); if(Math.hypot(this.y - (STORE_H - 100), 0) < 10) this.state = 'LEAVE'; } 
+                else if (this.state === 'LEAVE') { 
+                    this.moveTowards(this.myCar.x, this.myCar.y); 
+                    if(Math.hypot(this.x - this.myCar.x, this.y - this.myCar.y) < 20) { this.myCar.customersReturned++; if (this.myCar.customersReturned >= this.myCar.numCustomers) { this.myCar.state = 'LEAVING'; } this.dead = true; } 
+                }
+            }
+            
+            moveTowards(tx, ty) { 
+                let dx = tx - this.x, dy = ty - this.y; let dist = Math.hypot(dx, dy); 
+                if (dist > this.speed) { this.x += (dx / dist) * this.speed; this.y += (dy / dist) * this.speed; this.angle = Math.atan2(dy, dx) + Math.PI/2; } else { this.x = tx; this.y = ty; } 
+            }
+            
+            draw() { 
+                ctx.save(); ctx.scale(this.size, this.size); drawCharacter(ctx, this.x / this.size, this.y / this.size, this.angle, this.skin, this.shirt, this.wobble, {hat: this.isVip ? '#f39c12' : null}); ctx.restore();
+                if(this.state === 'WAIT_PAY' && this.payTimer > 0) { ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 20, this.y - 35, 40 * (this.payTimer / (cashierWorker ? 180 : 90)), 8); } else if(this.state === 'PICK_ITEM') { ctx.fillStyle = '#e67e22'; ctx.fillRect(this.x - 20, this.y - 35, 40 * (this.pickTimer / 60), 6); }
+                if (['WANDER', 'FIND_SHELF', 'GO_SHELF'].includes(this.state)) { let emoji = this.wantedType === 'wheat' ? '🌾' : this.wantedType === 'tomato' ? '🍅' : this.wantedType === 'milk' ? '🥛' : '☕'; ctx.fillStyle = '#fff'; ctx.font = "bold 14px Arial"; ctx.textAlign = "center"; ctx.shadowColor = "rgba(0,0,0,0.8)"; ctx.shadowBlur = 4; ctx.fillText(`${this.wantedAmount}💭${emoji}`, this.x, this.y - 35); ctx.shadowBlur = 0; }
+            }
+        }
+
+        // 7. UTILITY CLASSES
+        class BuyPad {
+            constructor(x, y, text, price, action) { this.x = x; this.y = y; this.text = text; this.price = price; this.action = action; this.bought = false; this.cooldown = 0; this.buyTimer = 0; }
+            update() {
+                if (this.cooldown > 0) this.cooldown--;
+                if (!this.bought && this.cooldown <= 0 && Math.hypot(player.x - this.x, player.y - this.y) < 60 && money >= this.price) {
+                    this.buyTimer++;
+                    if (this.buyTimer >= 120) {
+                        money -= this.price; this.action(); createFloatText(`-$${this.price}`, this.x, this.y, '#e74c3c'); this.cooldown = 120; 
+                        if (this.text.includes("PEKERJA") || this.text.includes("KASIR")) { this.bought = true; } else { this.price = Math.floor(this.price * 1.6); } this.buyTimer = 0;
+                    }
+                } else { this.buyTimer = 0; }
+            }
+            draw() {
+                if (!this.bought) {
+                    let isAffordable = money >= this.price;
+                    ctx.fillStyle = 'rgba(0,0,0,0.1)'; ctx.beginPath(); ctx.roundRect(this.x - 73, this.y - 33, 150, 70, 8); ctx.fill(); 
+                    if (this.cooldown > 0) { ctx.fillStyle = 'rgba(231, 76, 60, 0.8)'; ctx.strokeStyle = '#c0392b'; } else if (isAffordable) { ctx.fillStyle = 'rgba(46, 204, 113, 0.8)'; ctx.strokeStyle = '#27ae60'; } else { ctx.fillStyle = 'rgba(52, 152, 219, 0.8)'; ctx.strokeStyle = '#2980b9'; } 
+                    ctx.lineWidth = 3; ctx.beginPath(); ctx.roundRect(this.x - 75, this.y - 35, 150, 70, 8); ctx.fill(); ctx.stroke();
+                    ctx.fillStyle = '#fff'; ctx.font = "bold 12px Arial"; ctx.textAlign = "center"; ctx.fillText(this.text, this.x, this.y - 5); ctx.fillStyle = '#f1c40f'; ctx.font = "bold 18px Arial"; ctx.fillText(this.cooldown > 0 ? "WAIT..." : `$${this.price}`, this.x, this.y + 18);
+                    if (this.buyTimer > 0) { ctx.fillStyle = 'rgba(0,0,0,0.5)'; ctx.fillRect(this.x - 30, this.y - 45, 60, 8); ctx.fillStyle = '#2ecc71'; ctx.fillRect(this.x - 30, this.y - 45, 60 * (this.buyTimer / 120), 8); }
+                }
+            }
+        }
+
+        class Register {
+            constructor(x, y) { this.x = x; this.y = y; this.moneyPile = 0; }
+            update() { solidObjects.push({ x: this.x - 80, y: this.y - 40, w: 160, h: 60 }); if (this.moneyPile > 0 && Math.hypot(player.x - (this.x + 90), player.y - this.y) < 60) { money += this.moneyPile; stats.totalMoneyEarned += this.moneyPile; createFloatText(`+$${this.moneyPile}`, this.x + 90, this.y, '#2ecc71'); this.moneyPile = 0; } }
+            draw() {
+                ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.roundRect(this.x - 75, this.y - 10, 160, 40, 5); ctx.fill(); 
+                ctx.fillStyle = '#8e44ad'; ctx.beginPath(); ctx.roundRect(this.x - 80, this.y - 20, 160, 40, 5); ctx.fill(); 
+                ctx.fillStyle = '#9b59b6'; ctx.beginPath(); ctx.roundRect(this.x - 80, this.y - 40, 160, 40, 5); ctx.fill(); 
+                ctx.fillStyle = '#2c3e50'; ctx.fillRect(this.x - 60, this.y - 55, 30, 20); ctx.fillStyle = '#34495e'; ctx.fillRect(this.x - 60, this.y - 70, 30, 20); ctx.fillStyle = '#ecf0f1'; ctx.fillRect(this.x - 55, this.y - 65, 20, 10); 
+                ctx.fillStyle = '#f1c40f'; ctx.font = "bold 16px Arial"; ctx.fillText("🛒 KASIR", this.x + 20, this.y - 15); ctx.fillStyle = 'rgba(46, 204, 113, 0.2)'; ctx.beginPath(); ctx.roundRect(this.x + 70, this.y - 20, 40, 40, 5); ctx.fill(); ctx.strokeStyle = '#2ecc71'; ctx.lineWidth = 2; ctx.stroke();
+                if (this.moneyPile > 0) { let stackCount = Math.min(10, Math.ceil(this.moneyPile / 10)); for(let i = 0; i < stackCount; i++) { let billY = this.y + 5 - (i * 4); ctx.fillStyle = '#2ecc71'; ctx.beginPath(); ctx.roundRect(this.x + 75, billY, 30, 15, 3); ctx.fill(); ctx.stroke(); } if (stackCount > 0) { let topI = stackCount - 1; let billX = this.x + 75; let billY = this.y + 5 - (topI * 4); ctx.fillStyle = '#1e8449'; ctx.font = "bold 12px Arial"; ctx.textAlign = "center"; ctx.fillText("$", billX + 15, billY + 11); } }
+            }
+        }
+
+        class Car {
+            constructor(spot) { this.spot = spot; this.x = spot.x; this.y = MAP_H + 200; this.state = 'PARKING'; this.dead = false; this.color = ['#e74c3c', '#3498db', '#9b59b6', '#f1c40f', '#ecf0f1'][Math.floor(Math.random()*5)]; this.numCustomers = Math.floor(Math.random() * 2) + 1; this.customersReturned = 0; }
+            update() { 
+                if (this.state === 'PARKING') { this.y -= 5; if (this.y <= this.spot.y) { this.y = this.spot.y; this.state = 'WAITING'; let unlockedFarms = farms.filter(f => f.unlocked).map(f => f.type); if (unlockedFarms.length > 0) { for(let i = 0; i < this.numCustomers; i++) { let randomFarm = unlockedFarms[Math.floor(Math.random() * unlockedFarms.length)]; customers.push(new Customer(randomFarm, this)); } } } } 
+                else if (this.state === 'LEAVING') { this.y += 8; if (this.y > MAP_H + 300) { this.spot.car = null; this.dead = true; } } 
+            }
+            draw() { ctx.save(); ctx.translate(this.x, this.y); ctx.fillStyle = 'rgba(0,0,0,0.3)'; ctx.fillRect(-20, -40, 50, 90); ctx.fillStyle = '#222'; ctx.fillRect(-30, -35, 10, 20); ctx.fillRect(20, -35, 10, 20); ctx.fillRect(-30, 15, 10, 20); ctx.fillRect(20, 15, 10, 20); ctx.lineWidth = 3; ctx.strokeStyle = '#222'; ctx.fillStyle = this.color; ctx.beginPath(); ctx.roundRect(-25, -45, 50, 90, 8); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#bdc3c7'; ctx.beginPath(); ctx.roundRect(-20, -20, 40, 30, 5); ctx.fill(); ctx.restore(); }
+        }
+
+        class MonitorDesk {
+            constructor(x, y) { this.x = x; this.y = y; this.anim = 0; }
+            update() { this.anim += 0.1; solidObjects.push({ x: this.x - 40, y: this.y - 20, w: 80, h: 40 }); if (!isMonitorOpen && Math.hypot(player.x - this.x, player.y - this.y) < 40) { openMonitor(); player.y += 30; } }
+            draw() { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.roundRect(this.x - 35, this.y - 10, 80, 40, 5); ctx.fill(); ctx.fillStyle = 'rgba(46, 204, 113, 0.6)'; ctx.beginPath(); ctx.roundRect(this.x - 25, this.y + 15, 50, 30, 5); ctx.fill(); ctx.fillStyle = '#f1c40f'; ctx.font = "bold 20px Arial"; ctx.textAlign = "center"; ctx.fillText("▼", this.x, this.y - 65 + Math.sin(this.anim) * 5); ctx.fillStyle = '#7f8c8d'; ctx.beginPath(); ctx.roundRect(this.x - 40, this.y - 20, 80, 40, 5); ctx.fill(); ctx.fillStyle = '#2c3e50'; ctx.fillRect(this.x - 25, this.y - 15, 50, 5); ctx.fillStyle = '#34495e'; ctx.fillRect(this.x - 30, this.y - 50, 60, 40); ctx.fillStyle = `rgba(52, 152, 219, ${0.8 + Math.sin(this.anim) * 0.2})`; ctx.fillRect(this.x - 25, this.y - 45, 50, 30); }
+        }
+
+        class Decor {
+            constructor(x, y, type) { this.x = x; this.y = y; this.type = type || 'plant'; }
+            draw() {
+                ctx.strokeStyle = '#1a252f'; ctx.lineWidth = 1;
+                if (this.type === 'plant') { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(this.x, this.y + 5, 15, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#a1887f'; ctx.beginPath(); ctx.roundRect(this.x - 15, this.y - 10, 30, 25, 5); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#795548'; ctx.beginPath(); ctx.ellipse(this.x, this.y - 10, 18, 5, 0, 0, Math.PI*2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#4CAF50'; ctx.beginPath(); ctx.arc(this.x - 10, this.y - 20, 18, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#81C784'; ctx.beginPath(); ctx.arc(this.x + 10, this.y - 25, 20, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#388E3C'; ctx.beginPath(); ctx.arc(this.x + 2, this.y - 35, 15, 0, Math.PI*2); ctx.fill(); } 
+                else if (this.type === 'bin') { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(this.x, this.y + 10, 15, 8, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#546E7A'; ctx.beginPath(); ctx.roundRect(this.x - 12, this.y - 15, 24, 30, 5); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#263238'; ctx.beginPath(); ctx.roundRect(this.x - 12, this.y - 18, 24, 6, 2); ctx.fill(); ctx.stroke(); ctx.fillStyle = '#fff'; ctx.fillRect(this.x - 1, this.y - 10, 2, 20); }
+                else if (this.type === 'lamp') { ctx.fillStyle = 'rgba(0,0,0,0.15)'; ctx.beginPath(); ctx.ellipse(this.x, this.y + 5, 10, 5, 0, 0, Math.PI*2); ctx.fill(); ctx.fillStyle = '#2c3e50'; ctx.fillRect(this.x - 3, this.y - 80, 6, 85); ctx.fillStyle = '#f1c40f'; ctx.beginPath(); ctx.arc(this.x, this.y - 85, 12, 0, Math.PI*2); ctx.fill(); }
+            }
+        }
+
+        // 8. OS LOGIC & APPS
+        function openApp(appId, title) {
+            if (isAppLoading) return;
+            document.querySelectorAll('.app-view').forEach(a => a.classList.add('hidden'));
+            let iconStr = title.split(' ')[0]; let winTitleEl = document.getElementById('window-title');
+            if(winTitleEl) winTitleEl.innerHTML = `<span style="font-size:20px;">${iconStr}</span> ${title.substring(iconStr.length + 1)}`; 
+            document.getElementById('app-window').classList.remove('hidden');
+            const taskbarApps = document.getElementById('taskbar-apps');
+            if (taskbarApps) taskbarApps.innerHTML = `<div class="tb-item">${title} <span class="tb-close" onclick="event.stopPropagation(); closeApp()" style="cursor:pointer; color:#ff7675; margin-left:5px;">✖</span></div>`;
+            document.getElementById('app-loading').classList.remove('hidden'); isAppLoading = true;
+            
+            setTimeout(() => {
+                document.getElementById('app-loading').classList.add('hidden');
+                if (appId === 'crypto') {
+                    document.getElementById('app-crypto').classList.remove('hidden');
+                    if (minerUnlocked) { document.getElementById('crypto-locked').classList.add('hidden'); document.getElementById('crypto-unlocked').classList.remove('hidden'); runTerminalAnimation(); } 
+                    else { document.getElementById('crypto-locked').classList.remove('hidden'); document.getElementById('crypto-unlocked').classList.add('hidden'); }
+                } else { document.getElementById(`app-${appId}`).classList.remove('hidden'); }
+                
+                if (appId === 'quest') renderQuests();
+                if (appId === 'flappy') startFlappy(); else fbPlaying = false;
+                isAppLoading = false;
+            }, loadingTimes[internetLevel]);
+        }
+
+        function closeApp() { if (isAppLoading) return; document.getElementById('app-window').classList.add('hidden'); document.getElementById('taskbar-apps').innerHTML = ''; fbPlaying = false; clearInterval(termInterval); }
+        function openMonitor() { isMonitorOpen = true; document.getElementById('monitor-ui').classList.remove('hidden'); closeApp(); }
+        function closeMonitor() { isMonitorOpen = false; document.getElementById('monitor-ui').classList.add('hidden'); }
+
+        function buyMiner() {
+            if (money >= 100) { money -= 100; minerUnlocked = true; showToast("Terminal Mining Aktif!", "success"); document.getElementById('crypto-locked').classList.add('hidden'); document.getElementById('crypto-unlocked').classList.remove('hidden'); runTerminalAnimation(); } 
+            else { showToast("Duit Kurang Bos!", "error"); }
+        }
+
+        function renderQuests() {
+            const questList = document.getElementById('quest-list'); questList.innerHTML = '';
+            for(let i = 0; i < quests.length; i++) {
+                let q = quests[i]; let currentVal = stats[q.type]; let isComplete = currentVal >= q.target; 
+                let btnHTML = q.claimed ? `<button class="modern-btn btn-blue" disabled style="padding:8px 15px;">CLAIMED</button>` : `<button class="modern-btn btn-blue" ${isComplete ? '' : 'disabled'} onclick="claimQuest(${q.id})" style="padding:8px 15px;">${isComplete ? 'CLAIM' : 'LOCKED'}</button>`;
+                questList.innerHTML += `<div class="quest-item"><div><h4 style="margin:0;color:#2c3e50;">${q.title}</h4><p style="margin:5px 0 0;font-size:14px;color:#7f8c8d;">${q.desc} (${currentVal}/${q.target})</p></div>${btnHTML}</div>`; 
+            }
+        }
+
+        function claimQuest(id) { let q = quests.find(x => x.id === id); if (q && !q.claimed) { q.claimed = true; gems += q.reward; renderQuests(); showToast(`Dapet ${q.reward} Gems 💎`); } }
+        function buyVipCustomer() { if (vipUnlocked) return showToast("PELANGGAN VIP UDAH AKTIF!", "error"); if (gems >= 100) { gems -= 100; vipUnlocked = true; showToast("PELANGGAN VIP AKTIF!"); } else showToast("Gems Kurang Bos!", "error"); }
+        function sellBtc() { let cuan = Math.floor(btc * 10000); if (cuan >= 1) { money += cuan; stats.totalMoneyEarned += cuan; btc = 0; document.getElementById('ui-btc').innerText = "0.00000"; document.getElementById('hud-btc').innerText = "0.00000"; showToast(`Cair +$${cuan} 💵`); } else showToast("Belum nyampe $1 Bos!", "error"); }
+        function upgradePc() { if (money >= pcUpgCost) { money -= pcUpgCost; pcLevel++; btcRate += 0.00005; pcUpgCost *= 2; showToast("VGA Upgrade! ⚡"); } else showToast("Duit Kurang!", "error"); }
+        function buyInternet(lvl, price) { if (internetLevel >= lvl) return showToast("Udah Punya!", "error"); if (money >= price) { money -= price; internetLevel = lvl; let speeds = ["3.0 Detik", "2.0 Detik", "1.0 Detik"]; let str = lvl === 1 ? '5G' : 'Starlink'; showToast("Internet Kenceng! 🚀"); document.getElementById('internet-status').innerText = `Status Saat Ini: ${str} (${speeds[lvl]})`; } else showToast("Miskin Bos!", "error"); }
+
+        function setWallpaper(wpClass) { 
+            const desktop = document.getElementById('desktop-screen'); desktop.className = wpClass; 
+            const decorLayer = document.getElementById('wp-decor'); decorLayer.innerHTML = '';
+            if (wpClass === 'wp-1') { for(let i=0; i<4; i++) decorLayer.innerHTML += `<div class="wp-cloud" style="top:${Math.random()*200+50}px; left:${Math.random()*800}px; width:${100+Math.random()*100}px; height:40px; animation-delay:-${Math.random()*10}s"></div>`; } 
+            else if (wpClass === 'wp-3') { for(let i=0; i<30; i++) decorLayer.innerHTML += `<div class="wp-star" style="top:${Math.random()*500}px; left:${Math.random()*850}px; width:4px; height:4px; animation-delay:-${Math.random()*2}s"></div>`; } 
+            else if (wpClass === 'wp-2') { for(let i=0; i<20; i++) decorLayer.innerHTML += `<div style="position:absolute; top:${Math.random()*500}px; left:${Math.random()*850}px; color:#2ecc71; font-family:monospace; opacity:0.3; font-size:20px;">01</div>`; }
+            showToast("Wallpaper Terganti! 🖼️", 'success'); 
+        }
+
+        function runTerminalAnimation() {
+            clearInterval(termInterval); const term = document.getElementById('mining-terminal'); if (!term) return; term.innerHTML = '';
+            termInterval = setInterval(() => {
+                let text = terminalMessages[Math.floor(Math.random() * terminalMessages.length)];
+                if (Math.random() < 0.1) text = "[MINER] Block hash found: 0x8f9a2b...";
+                let div = document.createElement('div'); div.className = 'term-line'; div.innerText = text; term.appendChild(div);
+                if (term.children.length > 5) { term.removeChild(term.firstChild); }
+            }, 1000);
+        }
+
+        // FLAPPY BIRD ENGINE
+        const fbCanvas = document.getElementById('flappyCanvas'); const fbCtx = fbCanvas ? fbCanvas.getContext('2d') : null;
+        function startFlappy() { 
+            fbPlaying = true; birdY = 150; birdV = 0; fbPipes = []; fbScore = 0; fbFrames = 0; 
+            document.getElementById('flappy-ui').style.display = 'none'; document.getElementById('flappy-score').style.display = 'block'; document.getElementById('flappy-score').innerText = "0"; 
+            let highEl = document.getElementById('flappy-start-high'); if (highEl) highEl.innerText = `High Score: ${fbHighScore}`; flappyLoop(); 
+        }
+        if (fbCanvas) { fbCanvas.addEventListener('pointerdown', () => { if (fbPlaying) birdV = -5.5; }); }
+        function flappyLoop() {
+            if (!fbPlaying || !fbCtx) return;
+            fbCtx.clearRect(0, 0, 570, 340); birdV += 0.3; birdY += birdV;
+            fbCtx.fillStyle = '#f1c40f'; fbCtx.beginPath(); fbCtx.arc(100, birdY, 12, 0, Math.PI*2); fbCtx.fill(); fbCtx.lineWidth = 2; fbCtx.stroke();
+            fbCtx.fillStyle = '#fff'; fbCtx.beginPath(); fbCtx.arc(104, birdY - 4, 4, 0, Math.PI*2); fbCtx.fill();
+            fbCtx.fillStyle = '#000'; fbCtx.beginPath(); fbCtx.arc(105, birdY - 4, 2, 0, Math.PI*2); fbCtx.fill();
+            if (fbFrames % 90 === 0) fbPipes.push({ x: 570, y: Math.random() * 120 + 50, passed: false });
+            for (let i = 0; i < fbPipes.length; i++) {
+                let p = fbPipes[i]; p.x -= 3; 
+                let grad = fbCtx.createLinearGradient(p.x, 0, p.x + 50, 0); grad.addColorStop(0, '#2ecc71'); grad.addColorStop(1, '#27ae60'); fbCtx.fillStyle = grad;
+                fbCtx.fillRect(p.x, 0, 50, p.y); fbCtx.fillRect(p.x, p.y + 110, 50, 340 - (p.y + 110));
+                fbCtx.strokeStyle = '#2c3e50'; fbCtx.lineWidth = 2; fbCtx.strokeRect(p.x, -10, 50, p.y + 10); fbCtx.strokeRect(p.x, p.y + 110, 50, 340);
+                if (112 > p.x && 88 < p.x + 50 && (birdY - 12 < p.y || birdY + 12 > p.y + 110)) fbPlaying = false;
+                if (p.x + 50 < 100 && !p.passed) { p.passed = true; fbScore++; document.getElementById('flappy-score').innerText = fbScore; }
+            }
+            if (birdY > 340 || birdY < 0) fbPlaying = false;
+            fbPipes = fbPipes.filter(p => p.x > -60); fbFrames++;
+            if (fbPlaying) requestAnimationFrame(flappyLoop); 
+            else { 
+                if (fbScore > fbHighScore) fbHighScore = fbScore;
+                document.getElementById('flappy-score').style.display = 'none'; document.getElementById('flappy-ui').style.display = 'block'; 
+                document.getElementById('flappy-ui').innerHTML = `<h2 style="color:white;text-shadow:2px 2px 0 #000;font-size:36px;margin:0 0 10px 0;">GAME OVER</h2><div style="background:rgba(0,0,0,0.6); padding:10px 20px; border-radius:10px; margin-bottom:15px; color:white; display:inline-block; border: 2px solid #f1c40f;"><div style="font-size:24px; color:#f1c40f; font-weight:bold;">Score: ${fbScore}</div><div style="font-size:16px; font-weight:bold; margin-top:5px;">High Score: ${fbHighScore}</div></div><br><button onclick="startFlappy()" class="modern-btn btn-orange" style="font-size:18px; padding:12px 30px;">RETRY</button>`; 
+            }
+        }
+
+        // ==========================================
+        // 9. INIT & RUN
+        // ==========================================
+        let parkingCapacity = 3; 
+        let parkingSpots = [];
+        function updateParkingSpots() { let old = parkingSpots; parkingSpots = []; for(let i = 0; i < parkingCapacity; i++) { parkingSpots.push(i < old.length ? old[i] : { x: MAP_W/2 - 400 + (i * 150), y: STORE_H + 180, car: null }); } }
+        updateParkingSpots();
+
+        const player = new Player();
+        const autoDoor = new Entrance(MAP_W/2, STORE_H);
+        const register = new Register(MAP_W/2, 300); 
+        const monitorObj = new MonitorDesk(MAP_W/2 + 200, 300); 
+
+        const farms = [ 
+            new Farm(250, 350, 'wheat', 20, 'LAHAN GANDUM', -1), 
+            new Farm(550, 350, 'tomato', 200, 'LAHAN TOMAT', 0), 
+            new Farm(250, 650, 'milk', 450, 'LAHAN SAPI', 1),
+            new Farm(550, 650, 'coffee', 1000, 'LAHAN KOPI', 2) 
+        ];
+
+        const shelves = [ 
+            new Shelf(1000, 450, 'wheat'), new Shelf(1000, 650, 'tomato'), 
+            new Shelf(1300, 450, 'milk'), new Shelf(1300, 650, 'coffee') 
+        ];
+
+        const decors = [ 
+            new Decor(80, 80, 'plant'), new Decor(MAP_W - 80, 80, 'plant'), new Decor(80, STORE_H - 80, 'plant'), new Decor(MAP_W - 80, STORE_H - 80, 'plant'), 
+            new Decor(MAP_W/2 - 150, 800, 'bin'), new Decor(MAP_W/2 + 150, 800, 'bin'), 
+            new Decor(200, PARK_H + STORE_H - 50, 'lamp'), new Decor(MAP_W - 200, PARK_H + STORE_H - 50, 'lamp'),
+            new Decor(400, 300, 'lamp'), new Decor(1200, 300, 'lamp'), new Decor(MAP_W/2, 600, 'lamp')
+        ];
+
+        let workers = []; let customers = []; let cars = []; let cashierWorker = null;
+
+        const pads = [ 
+            new BuyPad(MAP_W/2, 200, "KASIR OTOMATIS", 300, () => { cashierWorker = new CashierWorker(register.x, register.y - 60); }), 
+            new BuyPad(1600, 200, "PEKERJA BARU", 250, () => { workers.push(new Worker(1500, 250)); }), 
+            new BuyPad(1600, 400, "UPGRADE TAS (+5)", 150, () => { player.maxInv += 5; }), 
+            new BuyPad(1600, 600, "SEPATU LARI (+1)", 200, () => { player.speed += 1; }), 
+            new BuyPad(1250, 880, "TAMBAH PARKIR (+1)", 200, () => { parkingCapacity++; updateParkingSpots(); }) 
+        ];
+
+        function gameLoop() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height); 
+            
+            gameTime += TIME_SPEED;
+            if (gameTime > 24000) { gameTime = 0; dayCount++; let dayEl = document.getElementById('hud-day'); if (dayEl) dayEl.innerText = dayCount; }
+            
+            solidObjects = [];
+            solidObjects.push({x: 0, y: STORE_H - 10, w: autoDoor.x - autoDoor.width/2, h: 20});
+            solidObjects.push({x: autoDoor.x + autoDoor.width/2, y: STORE_H - 10, w: MAP_W, h: 20});
+            
+            if (minerUnlocked) {
+                btcTimer++; 
+                if(btcTimer >= 60) {
+                    btc += btcRate; btcTimer = 0;
+                    let hudBtcEl = document.getElementById('hud-btc'); let uiBtcEl = document.getElementById('ui-btc');
+                    if (hudBtcEl) hudBtcEl.innerText = btc.toFixed(5); if (isMonitorOpen && uiBtcEl) uiBtcEl.innerText = btc.toFixed(5);
+                }
+            }
+            
+            if (!isMonitorOpen) { 
+                autoDoor.update(); register.update(); monitorObj.update();
+                for(let i = 0; i < farms.length; i++) farms[i].update();
+                for(let i = 0; i < shelves.length; i++) shelves[i].update();
+                for(let i = 0; i < pads.length; i++) pads[i].update();
+                player.update();
+                for(let i = 0; i < workers.length; i++) workers[i].update();
+                if (cashierWorker) cashierWorker.update();
+                
+                if (Math.random() < 0.015) {
+                    let emptySpot = null;
+                    for(let i = 0; i < parkingSpots.length; i++) { if (parkingSpots[i].car === null) { emptySpot = parkingSpots[i]; break; } }
+                    let hasFarm = false;
+                    for(let i = 0; i < farms.length; i++) { if (farms[i].unlocked) { hasFarm = true; break; } }
+                    if (emptySpot && hasFarm) { let newCar = new Car(emptySpot); cars.push(newCar); emptySpot.car = newCar; }
+                } 
+                
+                for(let i = 0; i < cars.length; i++) cars[i].update();
+                for(let i = 0; i < customers.length; i++) customers[i].update();
+                cars = cars.filter(c => !c.dead); customers = customers.filter(c => !c.dead); 
+            }
+          
+            ctx.save(); 
+            ctx.translate(canvas.width / 2 - player.x, canvas.height / 2 - player.y);
+            
+            ctx.fillStyle = '#2c3e50'; ctx.fillRect(0, STORE_H, MAP_W, PARK_H); 
+            for(let i = 0; i < parkingSpots.length; i++) { let p = parkingSpots[i]; ctx.strokeStyle = '#7f8c8d'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]); ctx.strokeRect(p.x - 40, p.y - 60, 80, 120); ctx.setLineDash([]); }
+            
+            ctx.fillStyle = '#ecf0f1'; ctx.fillRect(0, 0, MAP_W, STORE_H); 
+            ctx.fillStyle = '#e0e4e8';
+            for (let i = 0; i < MAP_W; i += 80) { for (let j = 0; j < STORE_H; j += 80) { if ((i / 80 + j / 80) % 2 === 0) { ctx.fillRect(i, j, 80, 80); } } }
+            
+            ctx.strokeStyle = '#1a252f'; ctx.lineWidth = 15; 
+            ctx.beginPath(); ctx.moveTo(0, STORE_H); ctx.lineTo(0, 0); ctx.lineTo(MAP_W, 0); ctx.lineTo(MAP_W, STORE_H); ctx.stroke(); 
+            ctx.beginPath(); ctx.moveTo(0, STORE_H); ctx.lineTo(autoDoor.x - autoDoor.width / 2, STORE_H); ctx.stroke(); 
+            ctx.beginPath(); ctx.moveTo(autoDoor.x + autoDoor.width / 2, STORE_H); ctx.lineTo(MAP_W, STORE_H); ctx.stroke(); 
+            
+            autoDoor.draw();
+            
+            let renderArray = [monitorObj];
+            for(let i=0; i<decors.length; i++) renderArray.push(decors[i]);
+            for(let i=0; i<farms.length; i++) renderArray.push(farms[i]);
+            for(let i=0; i<shelves.length; i++) renderArray.push(shelves[i]);
+            for(let i=0; i<workers.length; i++) renderArray.push(workers[i]);
+            for(let i=0; i<customers.length; i++) renderArray.push(customers[i]);
+            for(let i=0; i<cars.length; i++) renderArray.push(cars[i]);
+            renderArray.push(player); renderArray.push(register);
+            for(let i=0; i<pads.length; i++) renderArray.push(pads[i]);
+            if (cashierWorker) renderArray.push(cashierWorker); 
+            
+            renderArray.sort((a, b) => a.y - b.y);
+            for(let i = 0; i < renderArray.length; i++) { if(renderArray[i].checkVisibility) { if(renderArray[i].checkVisibility()) renderArray[i].draw(); } else { renderArray[i].draw(); } }
+            
+            for(let i = 0; i < floatTexts.length; i++) { let f = floatTexts[i]; f.y--; f.life -= 0.02; ctx.fillStyle = f.color; ctx.font = "bold 20px Arial"; ctx.fillText(f.txt, f.x, f.y); }
+            floatTexts = floatTexts.filter(f => f.life > 0);
+            
+            // DRAW TUTORIAL ARROW
+            if (!farms[0].unlocked) {
+                let dx = farms[0].x - player.x; let dy = farms[0].y - player.y; let angle = Math.atan2(dy, dx);
+                let bounce = Math.sin(Date.now() / 150) * 10;
+                ctx.save(); ctx.translate(player.x + Math.cos(angle) * (60 + bounce), player.y + Math.sin(angle) * (60 + bounce)); ctx.rotate(angle);
+                ctx.fillStyle = '#f1c40f'; ctx.shadowColor = 'rgba(0,0,0,0.5)'; ctx.shadowBlur = 5;
+                ctx.beginPath(); ctx.moveTo(15, 0); ctx.lineTo(-10, 10); ctx.lineTo(-10, -10); ctx.fill(); ctx.restore();
+                ctx.fillStyle = '#fff'; ctx.font = 'bold 16px Arial'; ctx.textAlign = 'center'; ctx.shadowColor = '#000'; ctx.shadowBlur = 4;
+                ctx.fillText("Beli Lahan Gandum Dulu!", player.x, player.y - 35); ctx.shadowBlur = 0;
+            }
+
+            let timePhase = (gameTime % 24000) / 24000;
+            if (timePhase > 0.5) {
+                let alpha = 0;
+                if (timePhase < 0.6) { alpha = (timePhase - 0.5) * 4.5; } else if (timePhase > 0.9) { alpha = (1.0 - timePhase) * 4.5; } else { alpha = 0.45; } 
+                ctx.fillStyle = `rgba(10, 10, 30, ${alpha})`; ctx.fillRect(0, 0, MAP_W, MAP_H + 500);
+                
+                if (alpha > 0) {
+                    ctx.globalCompositeOperation = 'lighter';
+                    let glow1 = ctx.createRadialGradient(monitorObj.x, monitorObj.y - 20, 0, monitorObj.x, monitorObj.y - 20, 200); glow1.addColorStop(0, `rgba(52, 152, 219, ${alpha * 0.8})`); glow1.addColorStop(1, 'rgba(52, 152, 219, 0)'); ctx.fillStyle = glow1; ctx.beginPath(); ctx.arc(monitorObj.x, monitorObj.y - 20, 200, 0, Math.PI*2); ctx.fill();
+                    let glow2 = ctx.createRadialGradient(register.x, register.y - 20, 0, register.x, register.y - 20, 200); glow2.addColorStop(0, `rgba(155, 89, 182, ${alpha * 0.6})`); glow2.addColorStop(1, 'rgba(155, 89, 182, 0)'); ctx.fillStyle = glow2; ctx.beginPath(); ctx.arc(register.x, register.y - 20, 200, 0, Math.PI*2); ctx.fill();
+                    for(let i=0; i<decors.length; i++) { if (decors[i].type === 'lamp') { let lg = ctx.createRadialGradient(decors[i].x, decors[i].y - 85, 0, decors[i].x, decors[i].y - 85, 250); lg.addColorStop(0, `rgba(241, 196, 15, ${alpha * 0.9})`); lg.addColorStop(1, 'rgba(241, 196, 15, 0)'); ctx.fillStyle = lg; ctx.beginPath(); ctx.arc(decors[i].x, decors[i].y - 85, 250, 0, Math.PI*2); ctx.fill(); } }
+                    ctx.globalCompositeOperation = 'source-over';
+                }
+            }
+            ctx.restore();
+          
+            let m = document.getElementById('money'), g = document.getElementById('gems'), ic = document.getElementById('inv-count'), it = document.getElementById('inv-tomato'), iw = document.getElementById('inv-wheat'), im = document.getElementById('inv-milk'), icoff = document.getElementById('inv-coffee');
+            if(m) m.innerText = Math.floor(money); if(g) g.innerText = gems; if(ic) ic.innerText = `${player.totalInv}/${player.maxInv}`; 
+            if(it) it.innerText = player.inv.tomato; if(iw) iw.innerText = player.inv.wheat; if(im) im.innerText = player.inv.milk; if(icoff) icoff.innerText = player.inv.coffee;
+            
+            if(isMonitorOpen && minerUnlocked) { let uh = document.getElementById('ui-hashrate'), up = document.getElementById('ui-pclvl'), uc = document.getElementById('ui-upg-cost'); if(uh) uh.innerText = btcRate.toFixed(5); if(up) up.innerText = pcLevel; if(uc) uc.innerText = pcUpgCost; }
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        gameLoop();
+    </script>
+</body>
+</html>
