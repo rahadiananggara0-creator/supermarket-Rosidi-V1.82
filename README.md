@@ -1,1 +1,1 @@
-# supermarket-Rosidi-V1.0
+# supermarket-Rosidi-V1.82
